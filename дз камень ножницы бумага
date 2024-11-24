@@ -1,0 +1,94 @@
+!pip install -q -U kaggle_environments
+
+import random
+from kaggle_environments import make, evaluate
+
+# Агенты с различными стратегиями
+
+# 1. Агент, всегда играющий "камень"
+def rock_agent(obs, config):
+    return 0
+
+# 2. Агент, всегда играющий "бумагу"
+def paper_agent(obs, config):
+    return 1
+
+# 3. Агент, всегда играющий "ножницы"
+def scissors_agent(obs, config):
+    return 2
+
+# 4. Агент, выбирающий случайный ход
+def random_agent(obs, config):
+    return random.randrange(0, config.signs)
+
+# 5. Агент, копирующий ход оппонента
+def copy_opponent(obs, config):
+    if obs.step > 0:
+        return obs.lastOpponentAction
+    return random.randrange(0, config.signs)
+
+# 6. Агент, играющий "камень", пока не проиграет
+def stubborn_rock_agent(obs, config):
+    if obs.step > 0 and obs.reward < 0:
+        return random.randrange(0, config.signs)
+    return 0
+
+# 7. Агент, циклически меняющий ходы
+def cycle_agent(obs, config):
+    return obs.step % config.signs
+
+# 8. Агент, выбирающий выигрышный ход против прошлого действия оппонента
+def counter_opponent(obs, config):
+    if obs.step > 0:
+        return (obs.lastOpponentAction + 1) % config.signs
+    return random.randrange(0, config.signs)
+
+# 9. Агент, который меняет стратегию каждые 5 ходов
+def adaptive_agent(obs, config):
+    return (obs.step // 5) % config.signs
+
+# 10. Агент, который всегда играет против "бумаги" (камень или ножницы)
+def anti_paper_agent(obs, config):
+    return random.choice([0, 2])
+
+# 11. Агент, всегда выбирающий ход, который оппонент никогда не выбирал
+def never_repeated_agent(obs, config):
+    history = getattr(obs, "opponent_history", set())
+    if obs.step > 0:
+        history.add(obs.lastOpponentAction)
+    obs.opponent_history = history
+    return next(i for i in range(config.signs) if i not in history)
+
+# 12. Агент, который выбирает ход, проигрывающий против хода оппонента
+def losing_agent(obs, config):
+    if obs.step > 0:
+        return (obs.lastOpponentAction + 2) % config.signs
+    return random.randrange(0, config.signs)
+
+# 13. Агент, который чередует "камень" и "ножницы"
+def rock_scissors_agent(obs, config):
+    return 0 if obs.step % 2 == 0 else 2
+
+# Запускаем турнир между агентами
+agents = [
+    rock_agent, paper_agent, scissors_agent, random_agent,
+    copy_opponent, stubborn_rock_agent, cycle_agent, counter_opponent,
+    adaptive_agent, anti_paper_agent, never_repeated_agent, losing_agent,
+    rock_scissors_agent
+]
+
+env = make("rps", configuration={"episodeSteps": 100})
+scores = {}
+
+# Турнир между всеми агентами
+for i, agent1 in enumerate(agents):
+    for j, agent2 in enumerate(agents):
+        if i != j:
+            outcomes = evaluate("rps", [agent1, agent2], configuration={"episodeSteps": 100})
+            agent1_score = outcomes[0][0]
+            agent2_score = outcomes[0][1]
+            scores[(agent1.__name__, agent2.__name__)] = (agent1_score, agent2_score)
+
+# Выводим результаты
+for match, result in scores.items():
+    print(f"{match[0]} vs {match[1]}: {result}")
